@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QHBoxLayout,
 )
-from PyQt6.QtGui import QIntValidator
+from PyQt6.QtGui import QIntValidator, QIcon
 from PyQt6.QtCore import Qt
 
 
@@ -43,6 +43,11 @@ class IPInputBox(QHBoxLayout):
         self.addWidget(QLabel("."))
         self.ip_address_4 = IPAddressInput()
         self.addWidget(self.ip_address_4)
+
+        self.ip_address_1.setText("127")
+        self.ip_address_2.setText("0")
+        self.ip_address_3.setText("0")
+        self.ip_address_4.setText("1")
 
     def get_ip_address(self):
         return ".".join(
@@ -80,8 +85,8 @@ class MainWindow(QWidget):
         self.threads = QLineEdit()
         self.threads.setPlaceholderText("Threads")
         self.threads.setFixedWidth(100)
-        threads_validator = QIntValidator(1, 9, self)
-        self.threads.setValidator(threads_validator)
+        # threads_validator = QIntValidator(1, 9, self)
+        # self.threads.setValidator(threads_validator)
 
         # 开始扫描和结束扫描按钮
         self.start_btn = QPushButton("Start Scan")
@@ -117,17 +122,105 @@ class MainWindow(QWidget):
 
         self.setWindowTitle("Port Scanner")
         self.show()
+        self.start_time = time.time()
+        self.threads_running = False
+        # 扫描结果列表
+        self.results = []
 
     def start_scan(self):
-        pass
+        self.start_time = time.time()
+        # 禁用开始扫描按钮
+        self.start_btn.setEnabled(False)
+        # 获取用户输入的参数
+        start_ip = self.start_ip_box.get_ip_address()
+        end_ip = self.end_ip_box.get_ip_address()
+        start_port = int(self.start_port.text())
+        end_port = int(self.end_port.text())
+        num_threads = int(self.threads.text())
+
+        # 计算IP地址列表
+        start_ip_bytes = list(map(int, start_ip.split(".")))
+        end_ip_bytes = list(map(int, end_ip.split(".")))
+        ip_list = []
+        for i in range(start_ip_bytes[3], end_ip_bytes[3] + 1):
+            ip = f"{start_ip_bytes[0]}.{start_ip_bytes[1]}.{start_ip_bytes[2]}.{i}"
+            ip_list.append(ip)
+
+        # 启动多个线程扫描端口
+        self.result_box.clear()
+        self.result_box.append("Scanning...\n")
+        self.results = []
+        self.threads_running = True
+
+        for ip in ip_list:
+            if self.threads_running:
+                self.scan_ip(ip, start_port, end_port, num_threads)
+
+        print(f"Scanning completed in {time.time()-self.start_time:.2f} seconds.")
+        self.show_results()
+        # 启用开始扫描按钮
+        self.start_btn.setEnabled(True)
+
+    def scan_ip(self, ip, start_port, end_port, num_threads):
+        ports_per_thread = (end_port - start_port + 1) // num_threads
+        threads = []
+
+        for i in range(num_threads):
+            if i == num_threads - 1:
+                # last thread takes remaining ports
+                end = end_port
+            else:
+                end = start_port + ports_per_thread - 1
+            thread = threading.Thread(
+                target=self.scan_thread, args=(ip, start_port, end)
+            )
+            threads.append(thread)
+            start_port = end + 1
+
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+    def scan_port(self, ip, port):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.07)  # 超时时间设置太大会导致扫描过程很慢，0.07都可以扫百度了。
+        # print("Scanning:    {}:{}".format(ip, port))
+        result = sock.connect_ex((ip, port))
+        sock.close()
+        if result == 0:
+            print(f"Port {port} is open")
+            self.results.append((ip, port))
+
+    def scan_thread(self, ip, start_port, end_port):
+        for port in range(start_port, end_port + 1):
+            self.scan_port(ip, port)
+
+    def show_results(self):
+        # 按端口号对扫描结果进行排序
+        self.results.sort(key=lambda x: x[1])
+
+        self.result_box.append(
+            f"Scanning completed in {time.time()-self.start_time:.2f} seconds.\n"
+        )
+        ports_number = int(self.end_port.text()) - int(self.start_port.text()) + 1
+        self.result_box.append(f"Scanned {ports_number} ports.\n")
+        if len(self.results) > 0:
+            for ip, port in self.results:
+                self.result_box.append(f"{ip}:{port}\n")
+            self.result_box.append(f"{len(self.results)} ports are open.")
+        else:
+            self.result_box.append("No open ports found.")
 
     def stop_scan(self):
-        pass
+        self.threads_running = False
+        self.result_box.append("Scan stopped by user.")
 
 
 def main():
-
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon('./images/ATRI.ico'))
     myScanner = MainWindow()
     sys.exit(app.exec())
 
