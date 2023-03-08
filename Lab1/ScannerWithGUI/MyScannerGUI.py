@@ -122,8 +122,8 @@ class MainWindow(QWidget):
 
         self.setWindowTitle("Port Scanner")
         self.show()
+        self.stop_event = threading.Event()
         self.start_time = time.time()
-        self.threads_running = False
         # 扫描结果列表
         self.results = []
 
@@ -150,11 +150,10 @@ class MainWindow(QWidget):
         self.result_box.clear()
         self.result_box.append("Scanning...\n")
         self.results = []
-        self.threads_running = True
+
 
         for ip in ip_list:
-            if self.threads_running:
-                self.scan_ip(ip, start_port, end_port, num_threads)
+            self.scan_ip(ip, start_port, end_port, num_threads)
 
         print(f"Scanning completed in {time.time()-self.start_time:.2f} seconds.")
         self.show_results()
@@ -194,8 +193,9 @@ class MainWindow(QWidget):
             self.results.append((ip, port))
 
     def scan_thread(self, ip, start_port, end_port):
-        for port in range(start_port, end_port + 1):
-            self.scan_port(ip, port)
+        if not self.stop_event.is_set():
+            for port in range(start_port, end_port + 1):
+                self.scan_port(ip, port)
 
     def show_results(self):
         # 按端口号对扫描结果进行排序
@@ -209,12 +209,12 @@ class MainWindow(QWidget):
         if len(self.results) > 0:
             for ip, port in self.results:
                 self.result_box.append(f"{ip}:{port}\n")
-            self.result_box.append(f"{len(self.results)} ports are open.")
+            self.result_box.append(f"{len(self.results)} ports are open.\n")
         else:
             self.result_box.append("No open ports found.")
 
     def stop_scan(self):
-        self.threads_running = False
+        self.stop_event.set()
         self.result_box.append("Scan stopped by user.")
 
 
