@@ -15,8 +15,12 @@ while True:
     # 处理上传文件请求
     if command == "upload":
         client_socket.send(f"upload".encode())
-        str1 = "/Lab1/SocketFileTransfer/"
-        str2 = (os.getcwd() + str1).replace("\\", "/")
+        # str1 = "/Lab1/SocketFileTransfer/"
+        # str2 = (os.getcwd() + str1).replace("\\", "/")
+        # 奇怪的事发生了，之前都是好的，不知道为什么到验收的时候就突然路径重复了
+        # 就变成下面这个鬼东西了。
+        # D:/VSCODE/NetSecurityLab/Lab1/SocketFileTransfer/Lab1/SocketFileTransfer/
+        str2 = os.getcwd()
         print("Your current filepath is:")
         print(str2)
         print("You can upload those files:")
@@ -24,7 +28,7 @@ while True:
             print(files)
         # 提示用户输入文件名
         filename = input("Please enter the filename you want to upload: ")
-        abspath = str2 + filename
+        abspath = os.path.join(str2, filename)
         # 如果文件存在，计算文件大小并发送文件名和大小给服务端
         if os.path.exists(abspath):
             filesize = os.path.getsize(abspath)
