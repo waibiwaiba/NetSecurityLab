@@ -10,9 +10,7 @@
 #include <time.h>
 
 #define MAX_PACKET_SIZE 65536
-// use `ifconfig` to see what network device is ok
 #define DEVICE_NAME "ens33"
-
 
 void packet_handler(u_char *user, const struct pcap_pkthdr *header, const u_char *packet);
 
@@ -26,7 +24,6 @@ int main()
     bpf_u_int32 mask;
     FILE *fpout;
     char filename[50];
-    
 
     // 打开网络接口
     handle = pcap_open_live(DEVICE_NAME, MAX_PACKET_SIZE, 1, 0, errbuf);
@@ -57,8 +54,8 @@ int main()
     time_t now = time(NULL);
     struct tm *tm_info = localtime(&now);
     strftime(filename, sizeof(filename), "%Y%m%d-%H-%M-%S.txt", tm_info);
+
     // 打开输出文件
-    
     fpout = fopen(filename, "w");
     if (fpout == NULL) {
         fprintf(stderr, "Failed to create output file\n");
@@ -93,7 +90,10 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *header, const u_char
         struct ip *ip_header;
         ip_header = (struct ip *) (packet + ethernet_header_length);
         ip_header_length = ip_header->ip_hl * 4;
-
+    	char src_ip[INET_ADDRSTRLEN];
+    	char dst_ip[INET_ADDRSTRLEN];
+    	inet_ntop(AF_INET, &(ip_header->ip_src), src_ip, INET_ADDRSTRLEN);
+    	inet_ntop(AF_INET, &(ip_header->ip_dst), dst_ip, INET_ADDRSTRLEN);
         // TCP 数据包
         if (ip_header->ip_p == IPPROTO_TCP) {
             // TCP 头部长度
@@ -102,12 +102,11 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *header, const u_char
             tcp_header = (struct tcphdr *) (packet + ethernet_header_length + ip_header_length);
             tcp_header_length = tcp_header->th_off * 4;
 
-
             // 输出四元组和协议类型
             fprintf((FILE *)user, "TCP %s:%d -> %s:%d\n",
-                inet_ntoa(ip_header->ip_src), ntohs(tcp_header->th_sport),
-                inet_ntoa(ip_header->ip_dst), ntohs(tcp_header->th_dport));
-                    }
+                src_ip, ntohs(tcp_header->th_sport),
+                dst_ip, ntohs(tcp_header->th_dport));
+        }
         // UDP 数据包
         else if (ip_header->ip_p == IPPROTO_UDP) {
             // UDP 头部长度
@@ -116,13 +115,10 @@ void packet_handler(u_char *user, const struct pcap_pkthdr *header, const u_char
             udp_header = (struct udphdr *) (packet + ethernet_header_length + ip_header_length);
             udp_header_length = sizeof(struct udphdr);
 
-            
             // 输出四元组和协议类型
             fprintf((FILE *)user, "UDP %s:%d -> %s:%d\n",
-                inet_ntoa(ip_header->ip_src), ntohs(udp_header->uh_sport),
-                inet_ntoa(ip_header->ip_dst), ntohs(udp_header->uh_dport));
-
+                src_ip, ntohs(udp_header->uh_sport),
+                dst_ip, ntohs(udp_header->uh_dport));
         }
     }
 }
-
