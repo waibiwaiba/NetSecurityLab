@@ -34,7 +34,7 @@ int main()
 
     // 获取网络接口地址和掩码
     if (pcap_lookupnet(DEVICE_NAME, &net, &mask, errbuf) == -1) {
-        fprintf(stderr, "Can't get netmask for device eth0\n");
+        fprintf(stderr, "Can't get netmask for device: %s\n", errbuf);
         net = 0;
         mask = 0;
     }
