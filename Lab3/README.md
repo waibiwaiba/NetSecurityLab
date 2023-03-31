@@ -64,7 +64,7 @@ lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
 
 在虚拟机采用NAT模式时，分配了子网地址的正在`RUNNING` 的 `ens38` 就是应该设置为`DEVICE_NAME`的网络适配器。
 
-编译：`gcc Mylibpcap.c -o Mylibpcap`
+编译：`gcc Mylibpcap.c -o Mylibpcap -lpcap`
 
 运行：`sudo ./Mylibpcap`
 
